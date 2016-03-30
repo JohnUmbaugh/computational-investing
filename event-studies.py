@@ -39,12 +39,19 @@ def find_bollinger_events( ls_symbols, d_data, qualifier ):
 		rolling_std = pd.stats.moments.rolling_std( df_close[s_sym], window)
 		bollinger_values = ( df_close[s_sym] - rolling_mean ) / rolling_std
 
+		value_dict = {
+			"bollinger values" : bollinger_values,
+			"spy bollinger values" : spy_bollinger_values,
+			"rolling std" : rolling_std,
+			"close prices" : df_close[s_sym].ix
+		}
+
 		for i in range(1, len(ldt_timestamps)):
 			# Calculating the returns for this timestamp
 			f_symprice_today = df_close[s_sym].ix[ldt_timestamps[i]]
 			f_symprice_yest = df_close[s_sym].ix[ldt_timestamps[i - 1]]
 
-			if ( qualifier( i, ldt_timestamps, bollinger_values, spy_bollinger_values ) ):
+			if ( qualifier( i, ldt_timestamps, value_dict ) ):
 				event_matrix[s_sym].ix[ldt_timestamps[i]] = 1
 				discrete_events.append( DiscreteEvent( ldt_timestamps[ i ], s_sym, f_symprice_today ) )
 
@@ -52,7 +59,9 @@ def find_bollinger_events( ls_symbols, d_data, qualifier ):
 
 	return event_matrix, sorted_discrete_events
 
-def original_qualifier( i, ldt_timestamps, bollinger_values, spy_bollinger_values ):
+def original_qualifier( i, ldt_timestamps, value_dict ):
+	bollinger_values = value_dict[ "bollinger values" ]
+	spy_bollinger_values = value_dict[ "spy bollinger values" ]
 	if i > 1:
 		if bollinger_values[ldt_timestamps[ i - 1 ] ] >= -2.0 \
 			and bollinger_values[ldt_timestamps[ i ] ] < -2.0 \
@@ -60,9 +69,34 @@ def original_qualifier( i, ldt_timestamps, bollinger_values, spy_bollinger_value
 				return True
 	return False
 
+# few but interesting
+def standard_dev_dip_1( i, ldt_timestamps, value_dict ):
+	bollinger_values = value_dict[ "bollinger values" ]
+	rolling_std = value_dict[ "rolling std" ]
+	return bollinger_values[ ldt_timestamps[ i ] ] <= -2.0 \
+		and rolling_std[ i ] >= 2.0
+
+# interesting... many
+def standard_dev_dip_2( i, ldt_timestamps, value_dict ):
+	bollinger_values = value_dict[ "bollinger values" ]
+	rolling_std = value_dict[ "rolling std" ]
+	return bollinger_values[ ldt_timestamps[ i ] ] <= -1.0
+
+def standard_dev_dip( i, ldt_timestamps, value_dict ):
+	bollinger_values = value_dict[ "bollinger values" ]
+	close_prices = value_dict[ "close prices" ]
+
+	if i > 5:
+		if bollinger_values[ ldt_timestamps[ i - 5 ] ] <= -2.0 \
+			and close_prices[ i ] < close_prices[ i - 5 ]:
+
+			return True
+
+	return False
+
 if __name__ == '__main__':
-	dt_start = dt.datetime(2012, 6, 1)
-	dt_end = dt.datetime(2015, 12, 31)
+	dt_start = dt.datetime(2012, 1, 1)
+	dt_end = dt.datetime(2012, 12, 31)
 	ldt_timestamps = du.getNYSEdays(dt_start, dt_end, dt.timedelta(hours=16))
 
 	dataobj = da.DataAccess('Yahoo')
@@ -78,7 +112,7 @@ if __name__ == '__main__':
 		d_data[s_key] = d_data[s_key].fillna(method='bfill')
 		d_data[s_key] = d_data[s_key].fillna(1.0)
 
-	event_matrix, discrete_events = find_bollinger_events( ls_symbols, d_data, original_qualifier )
+	event_matrix, discrete_events = find_bollinger_events( ls_symbols, d_data, standard_dev_dip )
 
 	for d in discrete_events:
 		print str( d.timestamp ) + " - " + str( d.symbol ) + " - " + str( d.price )
