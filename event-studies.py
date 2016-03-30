@@ -13,7 +13,7 @@ class DiscreteEvent:
 		self.symbol = symbol
 		self.price = price
 
-def find_bollinger_events( ls_symbols, d_data ):
+def find_bollinger_events( ls_symbols, d_data, qualifier ):
 	''' Finding the event dataframe '''
 	df_close = d_data['close']
 	ts_market = df_close['SPY']
@@ -23,7 +23,7 @@ def find_bollinger_events( ls_symbols, d_data ):
 
 	spy_rolling_mean = pd.stats.moments.rolling_mean( ts_market, window)
 	spy_rolling_std = pd.stats.moments.rolling_std( ts_market, window)
-	spy_bollinger_value = ( ts_market - spy_rolling_mean ) / spy_rolling_std
+	spy_bollinger_values = ( ts_market - spy_rolling_mean ) / spy_rolling_std
 
 	print "Finding Events"
 
@@ -37,25 +37,28 @@ def find_bollinger_events( ls_symbols, d_data ):
 	for s_sym in ls_symbols:
 		rolling_mean = pd.stats.moments.rolling_mean( df_close[s_sym], window)
 		rolling_std = pd.stats.moments.rolling_std( df_close[s_sym], window)
-		bollinger_value = ( df_close[s_sym] - rolling_mean ) / rolling_std
+		bollinger_values = ( df_close[s_sym] - rolling_mean ) / rolling_std
 
 		for i in range(1, len(ldt_timestamps)):
 			# Calculating the returns for this timestamp
 			f_symprice_today = df_close[s_sym].ix[ldt_timestamps[i]]
 			f_symprice_yest = df_close[s_sym].ix[ldt_timestamps[i - 1]]
 
-			if i > 1:
-				if bollinger_value[ldt_timestamps[ i - 1 ] ] >= -2.0 \
-					and bollinger_value[ldt_timestamps[ i ] ] < -2.0 \
-					and spy_bollinger_value[ldt_timestamps[ i ] ] >= 1.1:
-
-					event_matrix[s_sym].ix[ldt_timestamps[i]] = 1
-					discrete_events.append( DiscreteEvent( ldt_timestamps[ i ], s_sym, f_symprice_today ) )
+			if ( qualifier( i, ldt_timestamps, bollinger_values, spy_bollinger_values ) ):
+				event_matrix[s_sym].ix[ldt_timestamps[i]] = 1
+				discrete_events.append( DiscreteEvent( ldt_timestamps[ i ], s_sym, f_symprice_today ) )
 
 	sorted_discrete_events = sorted( discrete_events, key = lambda e: e.timestamp )
 
 	return event_matrix, sorted_discrete_events
 
+def original_qualifier( i, ldt_timestamps, bollinger_values, spy_bollinger_values ):
+	if i > 1:
+		if bollinger_values[ldt_timestamps[ i - 1 ] ] >= -2.0 \
+			and bollinger_values[ldt_timestamps[ i ] ] < -2.0 \
+			and spy_bollinger_values[ldt_timestamps[ i ] ] >= 1.1:
+				return True
+	return False
 
 if __name__ == '__main__':
 	dt_start = dt.datetime(2012, 6, 1)
@@ -75,10 +78,7 @@ if __name__ == '__main__':
 		d_data[s_key] = d_data[s_key].fillna(method='bfill')
 		d_data[s_key] = d_data[s_key].fillna(1.0)
 
-	#df_events = find_events(ls_symbols, d_data)
-	#df_events = find_hw2_events(ls_symbols, d_data)
-	#df_events = find_my_events(ls_symbols, d_data)
-	event_matrix, discrete_events = find_bollinger_events(ls_symbols, d_data)
+	event_matrix, discrete_events = find_bollinger_events( ls_symbols, d_data, original_qualifier )
 
 	for d in discrete_events:
 		print str( d.timestamp ) + " - " + str( d.symbol ) + " - " + str( d.price )
