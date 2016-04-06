@@ -8,10 +8,24 @@ import QSTK.qstkutil.DataAccess as da
 import eventprofiler as ep
 
 class DiscreteEvent:
-	def __init__( self, timestamp, symbol, price ):
-		self.timestamp = timestamp
+	def __init__( self, timestamp_index, symbol, price ):
+		self.timestamp_index = timestamp_index
 		self.symbol = symbol
 		self.price = price
+
+	def to_string( self, ldt_timestamps ):
+		return "Event|" + str( self.timestamp_index ) + "|" + str( ldt_timestamps[ self.timestamp_index ] ) + "|" + self.symbol + "|" + str(self.price)
+
+class Order:
+	def __init__( self, timestamp_index, symbol, share_count, order_type ):
+		self.timestamp_index = timestamp_index
+		self.symbol = symbol
+		self.share_count = share_count
+		self.order_type = order_type
+
+	def to_string( self, ldt_timestamps ):
+#		return str( self.timestamp_index ) + "|" + str( ldt_timestamps[ self.timestamp_index ] ) + "|" + self.symbol + "|" + str( self.share_count ) + "|" + self.order_type
+		return "Order|" + str( self.timestamp_index ) + "|" + self.symbol + "|" + str( self.share_count ) + "|" + self.order_type
 
 def find_bollinger_events( ls_symbols, d_data, ldt_timestamps, qualifier ):
 	''' Finding the event dataframe '''
@@ -50,9 +64,9 @@ def find_bollinger_events( ls_symbols, d_data, ldt_timestamps, qualifier ):
 
 			if ( qualifier( i, ldt_timestamps, value_dict ) ):
 				event_matrix[s_sym].ix[ldt_timestamps[i]] = 1
-				discrete_events.append( DiscreteEvent( ldt_timestamps[ i ], s_sym, f_symprice_today ) )
+				discrete_events.append( DiscreteEvent( i, s_sym, f_symprice_today ) )
 
-	sorted_discrete_events = sorted( discrete_events, key = lambda e: e.timestamp )
+	sorted_discrete_events = sorted( discrete_events, key = lambda e: ldt_timestamps[ e.timestamp_index ] )
 
 	return event_matrix, sorted_discrete_events
 
@@ -127,7 +141,7 @@ if __name__ == '__main__':
 	event_matrix, discrete_events = find_bollinger_events( ls_symbols, d_data, ldt_timestamps, foo )
 
 	for d in discrete_events:
-		print str( d.timestamp ) + " - " + str( d.symbol ) + " - " + str( d.price )
+		print d.to_string( ldt_timestamps )
 
 	print "Creating Study"
 	ep.eventprofiler(event_matrix, d_data, i_lookback=20, i_lookforward=20,
