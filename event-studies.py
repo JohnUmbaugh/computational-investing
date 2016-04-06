@@ -76,35 +76,50 @@ def standard_dev_dip_1( i, ldt_timestamps, value_dict ):
 	return bollinger_values[ ldt_timestamps[ i ] ] <= -2.0 \
 		and rolling_std[ i ] >= 2.0
 
-# interesting... many
-def standard_dev_dip_2( i, ldt_timestamps, value_dict ):
+def standard_dev_dip( i, ldt_timestamps, value_dict ):
 	bollinger_values = value_dict[ "bollinger values" ]
 	rolling_std = value_dict[ "rolling std" ]
 	return bollinger_values[ ldt_timestamps[ i ] ] <= -1.0
 
-def standard_dev_dip( i, ldt_timestamps, value_dict ):
+# interesting
+def foo1( i, ldt_timestamps, value_dict ):
 	bollinger_values = value_dict[ "bollinger values" ]
-	close_prices = value_dict[ "close prices" ]
+	rolling_std = value_dict[ "rolling std" ]
+	closing_prices = value_dict[ "close prices" ]
+	if i < 1:
+		return false
+	return ( closing_prices[ ldt_timestamps[ i ] ] / closing_prices[ ldt_timestamps[ i - 1 ] ] ) < 0.95
 
-	if i > 5:
-		if bollinger_values[ ldt_timestamps[ i - 5 ] ] <= -2.0 \
-			and close_prices[ i ] < close_prices[ i - 5 ]:
+# also interesting but rare
+def foo2( i, ldt_timestamps, value_dict ):
+	bollinger_values = value_dict[ "bollinger values" ]
+	rolling_std = value_dict[ "rolling std" ]
+	closing_prices = value_dict[ "close prices" ]
+	if i < 1:
+		return false
+	return ( closing_prices[ ldt_timestamps[ i ] ] / closing_prices[ ldt_timestamps[ i - 1 ] ] ) < 0.9
 
-			return True
-
-	return False
+def foo( i, ldt_timestamps, value_dict ):
+	bollinger_values = value_dict[ "bollinger values" ]
+	rolling_std = value_dict[ "rolling std" ]
+	closing_prices = value_dict[ "close prices" ]
+	if i < 1:
+		return false
+	return ( closing_prices[ ldt_timestamps[ i ] ] / closing_prices[ ldt_timestamps[ i - 1 ] ] ) < 0.98
 
 if __name__ == '__main__':
-	dt_start = dt.datetime(2012, 1, 1)
-	dt_end = dt.datetime(2012, 12, 31)
+	dt_start = dt.datetime(2015, 1, 1)
+	dt_end = dt.datetime(2016, 12, 31)
 	ldt_timestamps = du.getNYSEdays(dt_start, dt_end, dt.timedelta(hours=16))
 
-	dataobj = da.DataAccess('Yahoo')
-	ls_symbols = dataobj.get_symbols_from_list('sp5002012')
+	dataobj = da.DataAccess('Yahoo', verbose=True, cachestalltime=0)
+	#ls_symbols = dataobj.get_symbols_from_list('symbols')
+	ls_symbols = [ 'LUK', 'DIS', 'AMZN', 'KMX', 'MAR', 'CTSH', 'NFLX', 'CSTE', 'ATVI', 'HAS', 'FDX', 'MA', 'OII', 'MKL', 'CNI', 'WDAY', 'DWA', 'WAB', 'AAPL', 'PCLN', 'TRIP', 'AIRM', 'ADBE', 'CLNE', 'GILD', 'EBAY', 'WETF', 'CVS', 'MTH', 'BJRI', 'PII', 'CMI', 'HAIN', 'CGNX', 'SHW', 'BUD', 'BCPC', 'AMG', 'GWR', 'DISCK', 'WWAV', 'NTGR', 'MYL', 'FII', 'F', 'H', 'UHAL', 'XPO', 'PEGA', 'CLB', 'GNRC', 'RPM', 'SWIR', 'GLW' ]
 	ls_symbols.append('SPY')
 
 	ls_keys = ['open', 'high', 'low', 'close', 'volume', 'actual_close']
-	ldf_data = dataobj.get_data(ldt_timestamps, ls_symbols, ls_keys)
+	ldf_data = dataobj.get_data(ldt_timestamps, ls_symbols, ls_keys, verbose=True)
+
 	d_data = dict(zip(ls_keys, ldf_data))
 
 	for s_key in ls_keys:
@@ -112,7 +127,7 @@ if __name__ == '__main__':
 		d_data[s_key] = d_data[s_key].fillna(method='bfill')
 		d_data[s_key] = d_data[s_key].fillna(1.0)
 
-	event_matrix, discrete_events = find_bollinger_events( ls_symbols, d_data, standard_dev_dip )
+	event_matrix, discrete_events = find_bollinger_events( ls_symbols, d_data, foo )
 
 	for d in discrete_events:
 		print str( d.timestamp ) + " - " + str( d.symbol ) + " - " + str( d.price )
