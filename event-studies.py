@@ -37,7 +37,7 @@ class SimulationEvent:
 	def to_string( self, ldt_timestamps ):
 		return "SimEvent|" + str( self.timestamp_index ) + "|" + str( ldt_timestamps[ self.timestamp_index ] ) + "|" + str(self.portfolio_value) + "|" + str(self.cash_on_hand)
 
-def find_bollinger_events( ls_symbols, d_data, ldt_timestamps, qualifier ):
+def find_events( ls_symbols, d_data, ldt_timestamps, qualifier ):
 	''' Finding the event dataframe '''
 	df_close = d_data['close']
 	ts_market = df_close['SPY']
@@ -218,7 +218,7 @@ if __name__ == '__main__':
 		d_data[s_key] = d_data[s_key].fillna(method='bfill')
 		d_data[s_key] = d_data[s_key].fillna(1.0)
 
-	event_matrix, discrete_events = find_bollinger_events( ls_symbols, d_data, ldt_timestamps, foo )
+	event_matrix, discrete_events = find_events( ls_symbols, d_data, ldt_timestamps, foo )
 
 	for d in discrete_events:
 		print d.to_string( ldt_timestamps )
