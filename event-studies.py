@@ -26,6 +26,15 @@ class Order:
 	def to_string( self, ldt_timestamps ):
 		return "Order|" + str( self.timestamp_index ) + "|" + str( ldt_timestamps[ self.timestamp_index ] ) + "|" + self.symbol + "|" + str( self.share_count ) + "|" + self.order_type
 
+class SimulationEvent:
+	def __init__( self, timestamp_index, portfolio_value, cash_on_hand ):
+		self.timestamp_index = timestamp_index
+		self.portfolio_value = portfolio_value
+		self.cash_on_hand = cash_on_hand
+
+	def to_string( self, ldt_timestamps ):
+		return "SimEvent|" + str( self.timestamp_index ) + "|" + str( ldt_timestamps[ self.timestamp_index ] ) + "|" + str(self.portfolio_value) + "|" + str(self.cash_on_hand)
+
 def find_bollinger_events( ls_symbols, d_data, ldt_timestamps, qualifier ):
 	''' Finding the event dataframe '''
 	df_close = d_data['close']
@@ -68,6 +77,59 @@ def find_bollinger_events( ls_symbols, d_data, ldt_timestamps, qualifier ):
 	sorted_discrete_events = sorted( discrete_events, key = lambda e: ldt_timestamps[ e.timestamp_index ] )
 
 	return event_matrix, sorted_discrete_events
+
+def compute_portfolio( orders, ldt_timestamps, starting_cash ):
+	ls_symbols = set()
+	for o in orders:
+		ls_symbols.add( o.symbol )
+	ls_symbols.add( "$SPX" )
+
+	c_dataobj = da.DataAccess("Yahoo")
+	ls_keys = [ "close" ]
+	ldf_data = c_dataobj.get_data(ldt_timestamps, ls_symbols, ls_keys)
+	d_data = dict(zip(ls_keys, ldf_data))
+
+	datetime_order_dict = {}
+
+	for i in range( len( orders ) ):
+#		print str( i ) + " - " + str( orders[ i ].timestamp_index ) + " - " + str( len( ldt_timestamps ) )
+#		print "---"
+		today_datetime = ldt_timestamps[ orders[ i ].timestamp_index ]
+	
+		if today_datetime not in datetime_order_dict:
+			datetime_order_dict[ today_datetime ] = []
+
+		datetime_order_dict[ today_datetime ].append( orders[ i ] )
+
+	cash = starting_cash
+	positions = {}
+	for symbol in ls_symbols:
+		positions[ symbol ] = 0
+
+	simulation_events = []
+
+	for i in range( len( ldt_timestamps ) ):
+		today_datetime = ldt_timestamps[ i ]
+		today_closings = d_data[ 'close' ].ix[ today_datetime ]
+
+		if today_datetime in datetime_order_dict:
+			orders_today = datetime_order_dict[ today_datetime ]
+			for order in orders_today:
+				order_closing_price = today_closings[ order.symbol ]
+				if order.order_type == "BUY":
+					positions[ order.symbol ] += order.share_count
+					cash -= order.share_count * order_closing_price
+				elif order.order_type == "SELL":
+					positions[ order.symbol ] -= order.share_count
+					cash += order.share_count * order_closing_price				  
+
+		value = cash
+		for symbol in ls_symbols:
+			if not math.isnan( today_closings[ symbol ] ):
+				value += today_closings[ symbol ] * positions[ symbol ]
+		simulation_events.append( SimulationEvent( i, value, cash ) )
+
+	return simulation_events
 
 def original_qualifier( i, ldt_timestamps, value_dict ):
 	bollinger_values = value_dict[ "bollinger values" ]
@@ -156,6 +218,11 @@ if __name__ == '__main__':
 
 	for o in orders:
 		print o.to_string( ldt_timestamps )
+
+	simulation_events = compute_portfolio( orders, ldt_timestamps, 100000 )
+
+	for e in simulation_events:
+		print e.to_string( ldt_timestamps )
 
 	print "Creating Study"
 	ep.eventprofiler(event_matrix, d_data, i_lookback=20, i_lookforward=20,
