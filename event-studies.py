@@ -116,6 +116,24 @@ def convert_events_to_orders_by_share_amount( events, ldt_timestamps, trading_da
 	sorted_orders = sorted( orders, key = lambda o: o.timestamp_index )
 	return sorted_orders
 
+def convert_events_to_orders( events, ldt_timestamps, trading_days_to_sell_delta = 5, dollar_amount_to_transact = 10000 ):
+	orders = []
+	order_id = 0
+	order_group_id = 0
+	for e in events:
+		sell_timestamp_index = min( e.timestamp_index + trading_days_to_sell_delta, len( ldt_timestamps ) - 1 )
+
+		shares_to_transact = math.floor( dollar_amount_to_transact / e.price )
+
+		orders.append( Order( order_id, order_group_id, e.timestamp_index, e.symbol, shares_to_transact, "BUY" ) )
+		order_id += 1
+		orders.append( Order( order_id, order_group_id, sell_timestamp_index, e.symbol, shares_to_transact, "SELL" ) )
+		order_id += 1
+		order_group_id += 1
+
+	sorted_orders = sorted( orders, key = lambda o: o.timestamp_index )
+	return sorted_orders
+
 if __name__ == '__main__':
 	dt_start = dt.datetime(2014, 1, 1)
 	dt_end = dt.datetime(2015, 12, 31)
@@ -148,7 +166,7 @@ if __name__ == '__main__':
 	for d in discrete_events:
 		print d.to_string( ldt_timestamps )
 
-	orders = convert_events_to_orders_by_share_amount( discrete_events, ldt_timestamps, 5, 100 )
+	orders = convert_events_to_orders( discrete_events, ldt_timestamps, 7, 16000 )
 
 	for o in orders:
 		print o.to_string( ldt_timestamps )
@@ -156,8 +174,8 @@ if __name__ == '__main__':
 	starting_cash = 100000
 	simulation_events, transaction_count = portfoliosim.simulate_portfolio( d_data, orders, ldt_timestamps, starting_cash )
 
-#	for e in simulation_events:
-#		print e.to_string( ldt_timestamps )
+	for e in simulation_events:
+		print e.to_string( ldt_timestamps )
 
 	portfolio_value_prior_transaction_cost = simulation_events[ -1 ].portfolio_value
 	cost_per_trade = 8.0
