@@ -81,6 +81,7 @@ def find_events( ls_symbols, d_data, ldt_timestamps, qualifier ):
 	return event_matrix, sorted_discrete_events
 
 def compute_portfolio( orders, ldt_timestamps, starting_cash ):
+	transaction_count = 0
 	ls_symbols = set()
 	for o in orders:
 		ls_symbols.add( o.symbol )
@@ -126,9 +127,11 @@ def compute_portfolio( orders, ldt_timestamps, starting_cash ):
 						else:
 							positions[ order.symbol ] += order.share_count
 							cash -= order.share_count * order_closing_price
+							transaction_count += 1
 					elif order.order_type == "SELL":
 						positions[ order.symbol ] -= order.share_count
-						cash += order.share_count * order_closing_price				  
+						cash += order.share_count * order_closing_price
+						transaction_count += 1		  
 
 		value = cash
 		for symbol in ls_symbols:
@@ -136,7 +139,7 @@ def compute_portfolio( orders, ldt_timestamps, starting_cash ):
 				value += today_closings[ symbol ] * positions[ symbol ]
 		simulation_events.append( SimulationEvent( i, value, cash ) )
 
-	return simulation_events
+	return simulation_events, transaction_count
 
 def original_qualifier( i, ldt_timestamps, value_dict ):
 	bollinger_values = value_dict[ "bollinger values" ]
@@ -148,17 +151,13 @@ def original_qualifier( i, ldt_timestamps, value_dict ):
 				return True
 	return False
 
-# few but interesting
-def standard_dev_dip_1( i, ldt_timestamps, value_dict ):
-	bollinger_values = value_dict[ "bollinger values" ]
-	rolling_std = value_dict[ "rolling std" ]
-	return bollinger_values[ ldt_timestamps[ i ] ] <= -2.0 \
-		and rolling_std[ i ] >= 2.0
-
-def standard_dev_dip( i, ldt_timestamps, value_dict ):
-	bollinger_values = value_dict[ "bollinger values" ]
-	rolling_std = value_dict[ "rolling std" ]
-	return bollinger_values[ ldt_timestamps[ i ] ] <= -1.0
+class BollingerLTThresholdQualifierBuilder:
+	def __init__( self, threshold ):
+		self.threshold = threshold
+	
+	def qualify( self, i, ldt_timestamps, value_dict ):
+		bollinger_values = value_dict[ "bollinger values" ]
+		return bollinger_values[ ldt_timestamps[ i ] ] <= self.threshold
 
 class ClosingPriceRatioLTThresholdQualifierBuilder:
 	def __init__( self, threshold ):
@@ -202,33 +201,36 @@ if __name__ == '__main__':
 		d_data[s_key] = d_data[s_key].fillna(method='bfill')
 		d_data[s_key] = d_data[s_key].fillna(1.0)
 
-	# qb = ClosingPriceRatioLTThresholdQualifierBuilder( 0.9 )
-	# qb = ClosingPriceRatioLTThresholdQualifierBuilder( 0.98 )
-	qb = ClosingPriceRatioLTThresholdQualifierBuilder( 0.95 )
+	# q = ClosingPriceRatioLTThresholdQualifierBuilder( 0.9 ).qualify
+	# q = ClosingPriceRatioLTThresholdQualifierBuilder( 0.98 ).qualify
+	# q = ClosingPriceRatioLTThresholdQualifierBuilder( 0.95 ).qualify
+	# q = standard_dev_dip
+	q = BollingerLTThresholdQualifierBuilder( -2.0 ).qualify
 
-	event_matrix, discrete_events = find_events( ls_symbols, d_data, ldt_timestamps, qb.qualify )
+	event_matrix, discrete_events = find_events( ls_symbols, d_data, ldt_timestamps, q )
 
 	for d in discrete_events:
 		print d.to_string( ldt_timestamps )
 
-	orders = convert_events_to_orders( discrete_events, ldt_timestamps, 7, 100 )
+	orders = convert_events_to_orders( discrete_events, ldt_timestamps, 4, 20 )
 
 	for o in orders:
 		print o.to_string( ldt_timestamps )
 
 	starting_cash = 100000
-	simulation_events = compute_portfolio( orders, ldt_timestamps, starting_cash )
+	simulation_events, transaction_count = compute_portfolio( orders, ldt_timestamps, starting_cash )
 
 	for e in simulation_events:
 		print e.to_string( ldt_timestamps )
 
 	portfolio_value_prior_transaction_cost = simulation_events[ -1 ].portfolio_value
 	cost_per_trade = 8.0
-	total_trade_cost = cost_per_trade * len( orders )
+	total_trade_cost = cost_per_trade * transaction_count
 	final_value = portfolio_value_prior_transaction_cost - total_trade_cost
 	profit = final_value - starting_cash
 	
 	print "portfolio_value_prior_transaction_cost: " + str( portfolio_value_prior_transaction_cost )
+	print "transaction_count: " + str( transaction_count )
 	print "total_trade_cost: " + str( total_trade_cost )
 	print "final_value: " + str( final_value )
 	print "profit: " + str(profit)
