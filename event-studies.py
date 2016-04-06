@@ -85,7 +85,7 @@ def compute_portfolio( orders, ldt_timestamps, starting_cash ):
 	ls_symbols = set()
 	for o in orders:
 		ls_symbols.add( o.symbol )
-	ls_symbols.add( "$SPX" )
+	ls_symbols.add( "SPY" )
 
 	c_dataobj = da.DataAccess("Yahoo")
 	ls_keys = [ "close" ]
@@ -204,8 +204,7 @@ if __name__ == '__main__':
 	# q = ClosingPriceRatioLTThresholdQualifierBuilder( 0.9 ).qualify
 	# q = ClosingPriceRatioLTThresholdQualifierBuilder( 0.98 ).qualify
 	# q = ClosingPriceRatioLTThresholdQualifierBuilder( 0.95 ).qualify
-	# q = standard_dev_dip
-	q = BollingerLTThresholdQualifierBuilder( -2.0 ).qualify
+	q = BollingerLTThresholdQualifierBuilder( -3.0 ).qualify
 
 	event_matrix, discrete_events = find_events( ls_symbols, d_data, ldt_timestamps, q )
 
