@@ -17,14 +17,16 @@ class DiscreteEvent:
 		return "Event|" + str( self.timestamp_index ) + "|" + str( ldt_timestamps[ self.timestamp_index ] ) + "|" + self.symbol + "|" + str(self.price)
 
 class Order:
-	def __init__( self, timestamp_index, symbol, share_count, order_type ):
+	def __init__( self, timestamp_index, symbol, share_count, order_type, order_group_id ):
 		self.timestamp_index = timestamp_index
 		self.symbol = symbol
 		self.share_count = share_count
 		self.order_type = order_type
+		self.order_group_id = order_group_id
 
 	def to_string( self, ldt_timestamps ):
-		return "Order|" + str( self.timestamp_index ) + "|" + str( ldt_timestamps[ self.timestamp_index ] ) + "|" + self.symbol + "|" + str( self.share_count ) + "|" + self.order_type
+		return "Order|" + str( self.timestamp_index ) + "|" + str( ldt_timestamps[ self.timestamp_index ] ) + "|" + self.symbol + "|" + str( self.share_count ) \
+			+ "|" + self.order_type + "|" + str( self.order_group_id )
 
 class SimulationEvent:
 	def __init__( self, timestamp_index, portfolio_value, cash_on_hand ):
@@ -92,8 +94,6 @@ def compute_portfolio( orders, ldt_timestamps, starting_cash ):
 	datetime_order_dict = {}
 
 	for i in range( len( orders ) ):
-#		print str( i ) + " - " + str( orders[ i ].timestamp_index ) + " - " + str( len( ldt_timestamps ) )
-#		print "---"
 		today_datetime = ldt_timestamps[ orders[ i ].timestamp_index ]
 	
 		if today_datetime not in datetime_order_dict:
@@ -107,6 +107,7 @@ def compute_portfolio( orders, ldt_timestamps, starting_cash ):
 		positions[ symbol ] = 0
 
 	simulation_events = []
+	order_group_ids_to_ignore = set()
 
 	for i in range( len( ldt_timestamps ) ):
 		today_datetime = ldt_timestamps[ i ]
@@ -115,13 +116,19 @@ def compute_portfolio( orders, ldt_timestamps, starting_cash ):
 		if today_datetime in datetime_order_dict:
 			orders_today = datetime_order_dict[ today_datetime ]
 			for order in orders_today:
-				order_closing_price = today_closings[ order.symbol ]
-				if order.order_type == "BUY":
-					positions[ order.symbol ] += order.share_count
-					cash -= order.share_count * order_closing_price
-				elif order.order_type == "SELL":
-					positions[ order.symbol ] -= order.share_count
-					cash += order.share_count * order_closing_price				  
+				if order.order_group_id not in order_group_ids_to_ignore:
+					order_closing_price = today_closings[ order.symbol ]
+					if order.order_type == "BUY":
+						if ( order.share_count * order_closing_price ) > cash:
+							# can't buy
+							print "too little cash"
+							order_group_ids_to_ignore.add( order.order_group_id )
+						else:
+							positions[ order.symbol ] += order.share_count
+							cash -= order.share_count * order_closing_price
+					elif order.order_type == "SELL":
+						positions[ order.symbol ] -= order.share_count
+						cash += order.share_count * order_closing_price				  
 
 		value = cash
 		for symbol in ls_symbols:
@@ -154,7 +161,7 @@ def standard_dev_dip( i, ldt_timestamps, value_dict ):
 	return bollinger_values[ ldt_timestamps[ i ] ] <= -1.0
 
 # interesting
-def foo1( i, ldt_timestamps, value_dict ):
+def foo( i, ldt_timestamps, value_dict ):
 	bollinger_values = value_dict[ "bollinger values" ]
 	rolling_std = value_dict[ "rolling std" ]
 	closing_prices = value_dict[ "close prices" ]
@@ -171,7 +178,7 @@ def foo2( i, ldt_timestamps, value_dict ):
 		return false
 	return ( closing_prices[ ldt_timestamps[ i ] ] / closing_prices[ ldt_timestamps[ i - 1 ] ] ) < 0.9
 
-def foo( i, ldt_timestamps, value_dict ):
+def foo3( i, ldt_timestamps, value_dict ):
 	bollinger_values = value_dict[ "bollinger values" ]
 	rolling_std = value_dict[ "rolling std" ]
 	closing_prices = value_dict[ "close prices" ]
@@ -181,10 +188,12 @@ def foo( i, ldt_timestamps, value_dict ):
 
 def convert_events_to_orders( events, ldt_timestamps, trading_days_to_sell_delta = 5, shares_to_transact = 100 ):
 	orders = []
+	order_group_id = 0
 	for e in events:
 		sell_timestamp_index = min( e.timestamp_index + trading_days_to_sell_delta, len( ldt_timestamps ) - 1 )
-		orders.append( Order( e.timestamp_index, e.symbol, shares_to_transact, "BUY" ) )
-		orders.append( Order( sell_timestamp_index, e.symbol, shares_to_transact, "SELL" ) )
+		orders.append( Order( e.timestamp_index, e.symbol, shares_to_transact, "BUY", order_group_id ) )
+		orders.append( Order( sell_timestamp_index, e.symbol, shares_to_transact, "SELL", order_group_id ) )
+		order_group_id += 1
 
 	sorted_orders = sorted( orders, key = lambda o: o.timestamp_index )
 	return sorted_orders
@@ -214,15 +223,27 @@ if __name__ == '__main__':
 	for d in discrete_events:
 		print d.to_string( ldt_timestamps )
 
-	orders = convert_events_to_orders( discrete_events, ldt_timestamps, 5, 1 )
+	orders = convert_events_to_orders( discrete_events, ldt_timestamps, 7, 100 )
 
 	for o in orders:
 		print o.to_string( ldt_timestamps )
 
-	simulation_events = compute_portfolio( orders, ldt_timestamps, 100000 )
+	starting_cash = 100000
+	simulation_events = compute_portfolio( orders, ldt_timestamps, starting_cash )
 
 	for e in simulation_events:
 		print e.to_string( ldt_timestamps )
+
+	portfolio_value_prior_transaction_cost = simulation_events[ -1 ].portfolio_value
+	cost_per_trade = 8.0
+	total_trade_cost = cost_per_trade * len( orders )
+	final_value = portfolio_value_prior_transaction_cost - total_trade_cost
+	profit = final_value - starting_cash
+	
+	print "portfolio_value_prior_transaction_cost: " + str( portfolio_value_prior_transaction_cost )
+	print "total_trade_cost: " + str( total_trade_cost )
+	print "final_value: " + str( final_value )
+	print "profit: " + str(profit)
 
 	print "Creating Study"
 	ep.eventprofiler(event_matrix, d_data, i_lookback=20, i_lookforward=20,
