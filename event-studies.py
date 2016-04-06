@@ -179,12 +179,12 @@ def foo( i, ldt_timestamps, value_dict ):
 		return false
 	return ( closing_prices[ ldt_timestamps[ i ] ] / closing_prices[ ldt_timestamps[ i - 1 ] ] ) < 0.98
 
-def convert_events_to_orders( events, ldt_timestamps, trading_days_to_sell_delta = 5 ):
+def convert_events_to_orders( events, ldt_timestamps, trading_days_to_sell_delta = 5, shares_to_transact = 100 ):
 	orders = []
 	for e in events:
 		sell_timestamp_index = min( e.timestamp_index + trading_days_to_sell_delta, len( ldt_timestamps ) - 1 )
-		orders.append( Order( e.timestamp_index, e.symbol, 100, "BUY" ) )
-		orders.append( Order( sell_timestamp_index, e.symbol, 100, "SELL" ) )
+		orders.append( Order( e.timestamp_index, e.symbol, shares_to_transact, "BUY" ) )
+		orders.append( Order( sell_timestamp_index, e.symbol, shares_to_transact, "SELL" ) )
 
 	sorted_orders = sorted( orders, key = lambda o: o.timestamp_index )
 	return sorted_orders
@@ -214,7 +214,7 @@ if __name__ == '__main__':
 	for d in discrete_events:
 		print d.to_string( ldt_timestamps )
 
-	orders = convert_events_to_orders( discrete_events, ldt_timestamps, 5 )
+	orders = convert_events_to_orders( discrete_events, ldt_timestamps, 5, 1 )
 
 	for o in orders:
 		print o.to_string( ldt_timestamps )
