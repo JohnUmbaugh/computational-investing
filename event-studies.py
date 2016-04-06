@@ -6,6 +6,7 @@ import QSTK.qstkutil.qsdateutil as du
 import datetime as dt
 import QSTK.qstkutil.DataAccess as da
 import eventprofiler as ep
+import portfoliosim
 
 class DiscreteEvent:
 	def __init__( self, timestamp_index, symbol, price ):
@@ -17,25 +18,17 @@ class DiscreteEvent:
 		return "Event|" + str( self.timestamp_index ) + "|" + str( ldt_timestamps[ self.timestamp_index ] ) + "|" + self.symbol + "|" + str(self.price)
 
 class Order:
-	def __init__( self, timestamp_index, symbol, share_count, order_type, order_group_id ):
+	def __init__( self, order_id, order_group_id, timestamp_index, symbol, share_count, order_type ):
+		self.order_id = order_id
+		self.order_group_id = order_group_id
 		self.timestamp_index = timestamp_index
 		self.symbol = symbol
 		self.share_count = share_count
 		self.order_type = order_type
-		self.order_group_id = order_group_id
 
 	def to_string( self, ldt_timestamps ):
-		return "Order|" + str( self.timestamp_index ) + "|" + str( ldt_timestamps[ self.timestamp_index ] ) + "|" + self.symbol + "|" + str( self.share_count ) \
-			+ "|" + self.order_type + "|" + str( self.order_group_id )
-
-class SimulationEvent:
-	def __init__( self, timestamp_index, portfolio_value, cash_on_hand ):
-		self.timestamp_index = timestamp_index
-		self.portfolio_value = portfolio_value
-		self.cash_on_hand = cash_on_hand
-
-	def to_string( self, ldt_timestamps ):
-		return "SimEvent|" + str( self.timestamp_index ) + "|" + str( ldt_timestamps[ self.timestamp_index ] ) + "|" + str(self.portfolio_value) + "|" + str(self.cash_on_hand)
+		return "Order|" + str( self.order_id ) + "|" + str( self.order_group_id ) + "|" + str( ldt_timestamps[ self.timestamp_index ] ) \
+			+ "|" + self.symbol + "|" + str( self.share_count ) + "|" + self.order_type
 
 def find_events( ls_symbols, d_data, ldt_timestamps, qualifier ):
 	''' Finding the event dataframe '''
@@ -80,67 +73,6 @@ def find_events( ls_symbols, d_data, ldt_timestamps, qualifier ):
 
 	return event_matrix, sorted_discrete_events
 
-def compute_portfolio( orders, ldt_timestamps, starting_cash ):
-	transaction_count = 0
-	ls_symbols = set()
-	for o in orders:
-		ls_symbols.add( o.symbol )
-	ls_symbols.add( "SPY" )
-
-	c_dataobj = da.DataAccess("Yahoo")
-	ls_keys = [ "close" ]
-	ldf_data = c_dataobj.get_data(ldt_timestamps, ls_symbols, ls_keys)
-	d_data = dict(zip(ls_keys, ldf_data))
-
-	datetime_order_dict = {}
-
-	for i in range( len( orders ) ):
-		today_datetime = ldt_timestamps[ orders[ i ].timestamp_index ]
-	
-		if today_datetime not in datetime_order_dict:
-			datetime_order_dict[ today_datetime ] = []
-
-		datetime_order_dict[ today_datetime ].append( orders[ i ] )
-
-	cash = starting_cash
-	positions = {}
-	for symbol in ls_symbols:
-		positions[ symbol ] = 0
-
-	simulation_events = []
-	order_group_ids_to_ignore = set()
-
-	for i in range( len( ldt_timestamps ) ):
-		today_datetime = ldt_timestamps[ i ]
-		today_closings = d_data[ 'close' ].ix[ today_datetime ]
-
-		if today_datetime in datetime_order_dict:
-			orders_today = datetime_order_dict[ today_datetime ]
-			for order in orders_today:
-				if order.order_group_id not in order_group_ids_to_ignore:
-					order_closing_price = today_closings[ order.symbol ]
-					if order.order_type == "BUY":
-						if ( order.share_count * order_closing_price ) > cash:
-							# can't buy
-							print "too little cash"
-							order_group_ids_to_ignore.add( order.order_group_id )
-						else:
-							positions[ order.symbol ] += order.share_count
-							cash -= order.share_count * order_closing_price
-							transaction_count += 1
-					elif order.order_type == "SELL":
-						positions[ order.symbol ] -= order.share_count
-						cash += order.share_count * order_closing_price
-						transaction_count += 1		  
-
-		value = cash
-		for symbol in ls_symbols:
-			if not math.isnan( today_closings[ symbol ] ):
-				value += today_closings[ symbol ] * positions[ symbol ]
-		simulation_events.append( SimulationEvent( i, value, cash ) )
-
-	return simulation_events, transaction_count
-
 def original_qualifier( i, ldt_timestamps, value_dict ):
 	bollinger_values = value_dict[ "bollinger values" ]
 	spy_bollinger_values = value_dict[ "spy bollinger values" ]
@@ -171,11 +103,14 @@ class ClosingPriceRatioLTThresholdQualifierBuilder:
 
 def convert_events_to_orders_by_share_amount( events, ldt_timestamps, trading_days_to_sell_delta = 5, shares_to_transact = 100 ):
 	orders = []
+	order_id = 0
 	order_group_id = 0
 	for e in events:
 		sell_timestamp_index = min( e.timestamp_index + trading_days_to_sell_delta, len( ldt_timestamps ) - 1 )
-		orders.append( Order( e.timestamp_index, e.symbol, shares_to_transact, "BUY", order_group_id ) )
-		orders.append( Order( sell_timestamp_index, e.symbol, shares_to_transact, "SELL", order_group_id ) )
+		orders.append( Order( order_id, order_group_id, e.timestamp_index, e.symbol, shares_to_transact, "BUY" ) )
+		order_id += 1
+		orders.append( Order( order_id, order_group_id, sell_timestamp_index, e.symbol, shares_to_transact, "SELL" ) )
+		order_id += 1
 		order_group_id += 1
 
 	sorted_orders = sorted( orders, key = lambda o: o.timestamp_index )
@@ -186,7 +121,7 @@ if __name__ == '__main__':
 	dt_end = dt.datetime(2015, 12, 31)
 	ldt_timestamps = du.getNYSEdays(dt_start, dt_end, dt.timedelta(hours=16))
 
-	dataobj = da.DataAccess('Yahoo', verbose=True, cachestalltime=0)
+	dataobj = da.DataAccess('Yahoo', verbose=True, cachestalltime=10)
 	#ls_symbols = dataobj.get_symbols_from_list('symbols')
 	ls_symbols = [ 'LUK', 'DIS', 'AMZN', 'KMX', 'MAR', 'CTSH', 'NFLX', 'CSTE', 'ATVI', 'HAS', 'FDX', 'MA', 'OII', 'MKL', 'CNI', 'WDAY', 'DWA', 'WAB', 'AAPL', 'PCLN', 'TRIP', 'AIRM', 'ADBE', 'CLNE', 'GILD', 'EBAY', 'WETF', 'CVS', 'MTH', 'BJRI', 'PII', 'CMI', 'HAIN', 'CGNX', 'SHW', 'BUD', 'BCPC', 'AMG', 'GWR', 'DISCK', 'WWAV', 'NTGR', 'MYL', 'FII', 'F', 'H', 'UHAL', 'XPO', 'PEGA', 'CLB', 'GNRC', 'RPM', 'SWIR', 'GLW' ]
 	ls_symbols.append('SPY')
@@ -203,7 +138,8 @@ if __name__ == '__main__':
 
 	# q = ClosingPriceRatioLTThresholdQualifierBuilder( 0.9 ).qualify
 	# q = ClosingPriceRatioLTThresholdQualifierBuilder( 0.98 ).qualify
-	q = ClosingPriceRatioLTThresholdQualifierBuilder( 0.95 ).qualify
+	# q = ClosingPriceRatioLTThresholdQualifierBuilder( 0.95 ).qualify
+	q = ClosingPriceRatioLTThresholdQualifierBuilder( 0.94 ).qualify
 	# q = BollingerLTThresholdQualifierBuilder( -3.0 ).qualify
 	# q = original_qualifier
 
@@ -212,16 +148,16 @@ if __name__ == '__main__':
 	for d in discrete_events:
 		print d.to_string( ldt_timestamps )
 
-	orders = convert_events_to_orders_by_share_amount( discrete_events, ldt_timestamps, 4, 20 )
+	orders = convert_events_to_orders_by_share_amount( discrete_events, ldt_timestamps, 5, 100 )
 
 	for o in orders:
 		print o.to_string( ldt_timestamps )
 
 	starting_cash = 100000
-	simulation_events, transaction_count = compute_portfolio( orders, ldt_timestamps, starting_cash )
+	simulation_events, transaction_count = portfoliosim.simulate_portfolio( orders, ldt_timestamps, starting_cash )
 
-	for e in simulation_events:
-		print e.to_string( ldt_timestamps )
+#	for e in simulation_events:
+#		print e.to_string( ldt_timestamps )
 
 	portfolio_value_prior_transaction_cost = simulation_events[ -1 ].portfolio_value
 	cost_per_trade = 8.0
