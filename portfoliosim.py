@@ -10,17 +10,12 @@ class SimulationEvent:
 	def to_string( self, ldt_timestamps ):
 		return "SimEvent|" + str( self.timestamp_index ) + "|" + str( ldt_timestamps[ self.timestamp_index ] ) + "|" + str(self.portfolio_value) + "|" + str(self.cash_on_hand)
 
-def simulate_portfolio( orders, ldt_timestamps, starting_cash ):
+def simulate_portfolio( d_data, orders, ldt_timestamps, starting_cash ):
 	transaction_count = 0
 	ls_symbols = set()
 	for o in orders:
 		ls_symbols.add( o.symbol )
 	ls_symbols.add( "SPY" )
-
-	c_dataobj = da.DataAccess("Yahoo")
-	ls_keys = [ "close" ]
-	ldf_data = c_dataobj.get_data(ldt_timestamps, ls_symbols, ls_keys)
-	d_data = dict(zip(ls_keys, ldf_data))
 
 	datetime_order_dict = {}
 

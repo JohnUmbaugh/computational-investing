@@ -154,7 +154,7 @@ if __name__ == '__main__':
 		print o.to_string( ldt_timestamps )
 
 	starting_cash = 100000
-	simulation_events, transaction_count = portfoliosim.simulate_portfolio( orders, ldt_timestamps, starting_cash )
+	simulation_events, transaction_count = portfoliosim.simulate_portfolio( d_data, orders, ldt_timestamps, starting_cash )
 
 #	for e in simulation_events:
 #		print e.to_string( ldt_timestamps )
