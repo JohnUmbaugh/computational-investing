@@ -169,7 +169,7 @@ class ClosingPriceRatioLTThresholdQualifierBuilder:
 			return false
 		return ( closing_prices[ ldt_timestamps[ i ] ] / closing_prices[ ldt_timestamps[ i - 1 ] ] ) < self.threshold
 
-def convert_events_to_orders( events, ldt_timestamps, trading_days_to_sell_delta = 5, shares_to_transact = 100 ):
+def convert_events_to_orders_by_share_amount( events, ldt_timestamps, trading_days_to_sell_delta = 5, shares_to_transact = 100 ):
 	orders = []
 	order_group_id = 0
 	for e in events:
@@ -203,15 +203,16 @@ if __name__ == '__main__':
 
 	# q = ClosingPriceRatioLTThresholdQualifierBuilder( 0.9 ).qualify
 	# q = ClosingPriceRatioLTThresholdQualifierBuilder( 0.98 ).qualify
-	# q = ClosingPriceRatioLTThresholdQualifierBuilder( 0.95 ).qualify
-	q = BollingerLTThresholdQualifierBuilder( -3.0 ).qualify
+	q = ClosingPriceRatioLTThresholdQualifierBuilder( 0.95 ).qualify
+	# q = BollingerLTThresholdQualifierBuilder( -3.0 ).qualify
+	# q = original_qualifier
 
 	event_matrix, discrete_events = find_events( ls_symbols, d_data, ldt_timestamps, q )
 
 	for d in discrete_events:
 		print d.to_string( ldt_timestamps )
 
-	orders = convert_events_to_orders( discrete_events, ldt_timestamps, 4, 20 )
+	orders = convert_events_to_orders_by_share_amount( discrete_events, ldt_timestamps, 4, 20 )
 
 	for o in orders:
 		print o.to_string( ldt_timestamps )
