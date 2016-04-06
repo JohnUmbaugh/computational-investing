@@ -160,31 +160,15 @@ def standard_dev_dip( i, ldt_timestamps, value_dict ):
 	rolling_std = value_dict[ "rolling std" ]
 	return bollinger_values[ ldt_timestamps[ i ] ] <= -1.0
 
-# interesting
-def foo( i, ldt_timestamps, value_dict ):
-	bollinger_values = value_dict[ "bollinger values" ]
-	rolling_std = value_dict[ "rolling std" ]
-	closing_prices = value_dict[ "close prices" ]
-	if i < 1:
-		return false
-	return ( closing_prices[ ldt_timestamps[ i ] ] / closing_prices[ ldt_timestamps[ i - 1 ] ] ) < 0.95
+class ClosingPriceRatioLTThresholdQualifierBuilder:
+	def __init__( self, threshold ):
+		self.threshold = threshold
 
-# also interesting but rare
-def foo2( i, ldt_timestamps, value_dict ):
-	bollinger_values = value_dict[ "bollinger values" ]
-	rolling_std = value_dict[ "rolling std" ]
-	closing_prices = value_dict[ "close prices" ]
-	if i < 1:
-		return false
-	return ( closing_prices[ ldt_timestamps[ i ] ] / closing_prices[ ldt_timestamps[ i - 1 ] ] ) < 0.9
-
-def foo3( i, ldt_timestamps, value_dict ):
-	bollinger_values = value_dict[ "bollinger values" ]
-	rolling_std = value_dict[ "rolling std" ]
-	closing_prices = value_dict[ "close prices" ]
-	if i < 1:
-		return false
-	return ( closing_prices[ ldt_timestamps[ i ] ] / closing_prices[ ldt_timestamps[ i - 1 ] ] ) < 0.98
+	def qualify( self, i, ldt_timestamps, value_dict ):
+		closing_prices = value_dict[ "close prices" ]
+		if i < 1:
+			return false
+		return ( closing_prices[ ldt_timestamps[ i ] ] / closing_prices[ ldt_timestamps[ i - 1 ] ] ) < self.threshold
 
 def convert_events_to_orders( events, ldt_timestamps, trading_days_to_sell_delta = 5, shares_to_transact = 100 ):
 	orders = []
@@ -218,7 +202,11 @@ if __name__ == '__main__':
 		d_data[s_key] = d_data[s_key].fillna(method='bfill')
 		d_data[s_key] = d_data[s_key].fillna(1.0)
 
-	event_matrix, discrete_events = find_events( ls_symbols, d_data, ldt_timestamps, foo )
+	# qb = ClosingPriceRatioLTThresholdQualifierBuilder( 0.9 )
+	# qb = ClosingPriceRatioLTThresholdQualifierBuilder( 0.98 )
+	qb = ClosingPriceRatioLTThresholdQualifierBuilder( 0.95 )
+
+	event_matrix, discrete_events = find_events( ls_symbols, d_data, ldt_timestamps, qb.qualify )
 
 	for d in discrete_events:
 		print d.to_string( ldt_timestamps )
