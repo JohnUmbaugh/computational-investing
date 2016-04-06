@@ -13,7 +13,7 @@ class DiscreteEvent:
 		self.symbol = symbol
 		self.price = price
 
-def find_bollinger_events( ls_symbols, d_data, qualifier ):
+def find_bollinger_events( ls_symbols, d_data, ldt_timestamps, qualifier ):
 	''' Finding the event dataframe '''
 	df_close = d_data['close']
 	ts_market = df_close['SPY']
@@ -30,9 +30,6 @@ def find_bollinger_events( ls_symbols, d_data, qualifier ):
 	# Creating an empty dataframe
 	event_matrix = copy.deepcopy(df_close)
 	event_matrix = event_matrix * np.NAN
-
-	# Time stamps for the event range
-	ldt_timestamps = df_close.index
 
 	for s_sym in ls_symbols:
 		rolling_mean = pd.stats.moments.rolling_mean( df_close[s_sym], window)
@@ -108,8 +105,8 @@ def foo( i, ldt_timestamps, value_dict ):
 	return ( closing_prices[ ldt_timestamps[ i ] ] / closing_prices[ ldt_timestamps[ i - 1 ] ] ) < 0.98
 
 if __name__ == '__main__':
-	dt_start = dt.datetime(2015, 1, 1)
-	dt_end = dt.datetime(2016, 12, 31)
+	dt_start = dt.datetime(2014, 1, 1)
+	dt_end = dt.datetime(2015, 12, 31)
 	ldt_timestamps = du.getNYSEdays(dt_start, dt_end, dt.timedelta(hours=16))
 
 	dataobj = da.DataAccess('Yahoo', verbose=True, cachestalltime=0)
@@ -127,7 +124,7 @@ if __name__ == '__main__':
 		d_data[s_key] = d_data[s_key].fillna(method='bfill')
 		d_data[s_key] = d_data[s_key].fillna(1.0)
 
-	event_matrix, discrete_events = find_bollinger_events( ls_symbols, d_data, foo )
+	event_matrix, discrete_events = find_bollinger_events( ls_symbols, d_data, ldt_timestamps, foo )
 
 	for d in discrete_events:
 		print str( d.timestamp ) + " - " + str( d.symbol ) + " - " + str( d.price )
