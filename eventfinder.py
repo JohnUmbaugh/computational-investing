@@ -2,7 +2,7 @@ import pandas as pd
 import copy
 import numpy as np
 
-class DiscreteEvent:
+class Event:
 	def __init__( self, timestamp_index, symbol, price ):
 		self.timestamp_index = timestamp_index
 		self.symbol = symbol
@@ -16,7 +16,7 @@ def find_events( ls_symbols, d_data, ldt_timestamps, qualifier ):
 	df_close = d_data['close']
 	ts_market = df_close['SPY']
 
-	discrete_events = []
+	events = []
 	window = 20
 
 	spy_rolling_mean = pd.stats.moments.rolling_mean( ts_market, window)
@@ -48,11 +48,11 @@ def find_events( ls_symbols, d_data, ldt_timestamps, qualifier ):
 
 			if ( qualifier( i, ldt_timestamps, value_dict ) ):
 				event_matrix[s_sym].ix[ldt_timestamps[i]] = 1
-				discrete_events.append( DiscreteEvent( i, s_sym, f_symprice_today ) )
+				events.append( Event( i, s_sym, f_symprice_today ) )
 
-	sorted_discrete_events = sorted( discrete_events, key = lambda e: ldt_timestamps[ e.timestamp_index ] )
+	sorted_events = sorted( events, key = lambda e: ldt_timestamps[ e.timestamp_index ] )
 
-	return event_matrix, sorted_discrete_events
+	return event_matrix, sorted_events
 
 def original_qualifier( i, ldt_timestamps, value_dict ):
 	bollinger_values = value_dict[ "bollinger values" ]
