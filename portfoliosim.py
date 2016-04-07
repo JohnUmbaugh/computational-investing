@@ -33,7 +33,6 @@ def simulate_portfolio( d_data, orders, ldt_timestamps, starting_cash ):
 		positions[ symbol ] = 0
 
 	simulation_events = []
-#	order_group_ids_to_ignore = set()
 
 	for i in range( len( ldt_timestamps ) ):
 		today_datetime = ldt_timestamps[ i ]
@@ -42,20 +41,18 @@ def simulate_portfolio( d_data, orders, ldt_timestamps, starting_cash ):
 		if today_datetime in datetime_order_dict:
 			orders_today = datetime_order_dict[ today_datetime ]
 			for order in orders_today:
-#				if order.order_group_id not in order_group_ids_to_ignore:
 				if order.order_group.is_valid:
 					order_closing_price = today_closings[ order.symbol ]
-					if order.order_type == "BUY":
+					if order.order_action == "BUY":
 						if ( order.share_count * order_closing_price ) > cash:
 							# can't buy
 							print "too little cash"
-							# order_group_ids_to_ignore.add( order.order_group_id )
 							order.order_group.is_valid = False
 						else:
 							positions[ order.symbol ] += order.share_count
 							cash -= order.share_count * order_closing_price
 							transaction_count += 1
-					elif order.order_type == "SELL":
+					elif order.order_action == "SELL":
 						positions[ order.symbol ] -= order.share_count
 						cash += order.share_count * order_closing_price
 						transaction_count += 1		  
