@@ -8,8 +8,12 @@ import portfoliosim
 import orderconverter
 
 if __name__ == '__main__':
-	dt_start = dt.datetime(2014, 1, 1)
-	dt_end = dt.datetime(2015, 12, 31)
+#	dt_start = dt.datetime(2014, 1, 1)
+#	dt_end = dt.datetime(2015, 12, 31)
+
+	dt_start = dt.datetime(2016, 1, 1)
+	dt_end = dt.datetime(2016, 4, 1)
+
 	ldt_timestamps = du.getNYSEdays(dt_start, dt_end, dt.timedelta(hours=16))
 
 	dataobj = da.DataAccess('Yahoo', verbose=True, cachestalltime=10)
@@ -39,7 +43,8 @@ if __name__ == '__main__':
 	for d in discrete_events:
 		print d.to_string( ldt_timestamps )
 
-	orders = orderconverter.convert_events_to_orders( discrete_events, ldt_timestamps, 7, 16000 )
+	orders = orderconverter.convert_events_to_orders_2( discrete_events, ldt_timestamps, 7, 16000 )
+#	orders = orderconverter.convert_events_to_orders( discrete_events, ldt_timestamps, 0.025, 1, 10000 )
 
 	for o in orders:
 		print o.to_string( ldt_timestamps )

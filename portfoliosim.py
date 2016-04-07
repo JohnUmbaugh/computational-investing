@@ -33,6 +33,7 @@ def simulate_portfolio( d_data, orders, ldt_timestamps, starting_cash ):
 		positions[ symbol ] = 0
 
 	simulation_events = []
+	persistant_orders = set()
 
 	for i in range( len( ldt_timestamps ) ):
 		today_datetime = ldt_timestamps[ i ]
@@ -53,9 +54,24 @@ def simulate_portfolio( d_data, orders, ldt_timestamps, starting_cash ):
 							cash -= order.share_count * order_closing_price
 							transaction_count += 1
 					elif order.order_action == "SELL":
-						positions[ order.symbol ] -= order.share_count
-						cash += order.share_count * order_closing_price
-						transaction_count += 1		  
+						if order.order_type == "MinimumPriceTargetOrder":
+							persistant_orders.add( order )
+						elif order.order_type == "Order":
+							positions[ order.symbol ] -= order.share_count
+							cash += order.share_count * order_closing_price
+							transaction_count += 1		  
+
+		orders_to_remove = set()
+		for order in persistant_orders:
+			order_closing_price = today_closings[ order.symbol ]			
+			if order.order_type == "MinimumPriceTargetOrder":
+				positions[ order.symbol ] -= order.share_count
+				cash += order.share_count * order_closing_price
+				orders_to_remove.add( order )
+				transaction_count += 1
+
+		for order in orders_to_remove:
+			persistant_orders.remove( order )
 
 		value = cash
 		for symbol in ls_symbols:

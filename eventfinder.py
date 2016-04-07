@@ -30,6 +30,8 @@ def find_events( ls_symbols, d_data, ldt_timestamps, qualifier ):
 	event_matrix = event_matrix * np.NAN
 
 	for s_sym in ls_symbols:
+		print s_sym
+
 		rolling_mean = pd.stats.moments.rolling_mean( df_close[s_sym], window)
 		rolling_std = pd.stats.moments.rolling_std( df_close[s_sym], window)
 		bollinger_values = ( df_close[s_sym] - rolling_mean ) / rolling_std
