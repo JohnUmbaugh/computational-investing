@@ -14,14 +14,14 @@ class Event:
 def find_events( ls_symbols, d_data, ldt_timestamps, qualifier ):
 	''' Finding the event dataframe '''
 	df_close = d_data['close']
-	ts_market = df_close['SPY']
+#	ts_market = df_close['SPY']
 
 	events = []
 	window = 20
 
-	spy_rolling_mean = pd.stats.moments.rolling_mean( ts_market, window)
-	spy_rolling_std = pd.stats.moments.rolling_std( ts_market, window)
-	spy_bollinger_values = ( ts_market - spy_rolling_mean ) / spy_rolling_std
+#	spy_rolling_mean = pd.stats.moments.rolling_mean( ts_market, window)
+#	spy_rolling_std = pd.stats.moments.rolling_std( ts_market, window)
+#	spy_bollinger_values = ( ts_market - spy_rolling_mean ) / spy_rolling_std
 
 	print "Finding Events"
 
@@ -38,7 +38,7 @@ def find_events( ls_symbols, d_data, ldt_timestamps, qualifier ):
 
 		value_dict = {
 			"bollinger values" : bollinger_values,
-			"spy bollinger values" : spy_bollinger_values,
+#			"spy bollinger values" : spy_bollinger_values,
 			"rolling std" : rolling_std,
 			"close prices" : df_close[s_sym].ix
 		}

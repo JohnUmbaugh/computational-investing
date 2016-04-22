@@ -11,15 +11,17 @@ if __name__ == '__main__':
 #	dt_start = dt.datetime(2014, 1, 1)
 #	dt_end = dt.datetime(2015, 12, 31)
 
-	dt_start = dt.datetime(2016, 1, 1)
-	dt_end = dt.datetime(2016, 4, 1)
+	dt_start = dt.datetime(2016, 4, 1)
+	dt_end = dt.datetime(2016, 4, 22)
+
 
 	ldt_timestamps = du.getNYSEdays(dt_start, dt_end, dt.timedelta(hours=16))
 
 	dataobj = da.DataAccess('Yahoo', verbose=True, cachestalltime=10)
-	#ls_symbols = dataobj.get_symbols_from_list('symbols')
-	ls_symbols = [ 'LUK', 'DIS', 'AMZN', 'KMX', 'MAR', 'CTSH', 'NFLX', 'CSTE', 'ATVI', 'HAS', 'FDX', 'MA', 'OII', 'MKL', 'CNI', 'WDAY', 'DWA', 'WAB', 'AAPL', 'PCLN', 'TRIP', 'AIRM', 'ADBE', 'CLNE', 'GILD', 'EBAY', 'WETF', 'CVS', 'MTH', 'BJRI', 'PII', 'CMI', 'HAIN', 'CGNX', 'SHW', 'BUD', 'BCPC', 'AMG', 'GWR', 'DISCK', 'WWAV', 'NTGR', 'MYL', 'FII', 'F', 'H', 'UHAL', 'XPO', 'PEGA', 'CLB', 'GNRC', 'RPM', 'SWIR', 'GLW' ]
-	ls_symbols.append('SPY')
+	ls_symbols = dataobj.get_symbols_from_list('symbols')
+#	ls_symbols = [ 'LUK', 'DIS', 'AMZN', 'KMX', 'MAR', 'CTSH', 'NFLX', 'CSTE', 'ATVI', 'HAS', 'FDX', 'MA', 'OII', 'MKL', 'CNI', 'WDAY', 'DWA', 'WAB', 'AAPL', 'PCLN', 'TRIP', 'AIRM', 'ADBE', 'CLNE', 'GILD', 'EBAY', 'WETF', 'CVS', 'MTH', 'BJRI', 'PII', 'CMI', 'HAIN', 'CGNX', 'SHW', 'BUD', 'BCPC', 'AMG', 'GWR', 'DISCK', 'WWAV', 'NTGR', 'MYL', 'FII', 'F', 'H', 'UHAL', 'XPO', 'PEGA', 'CLB', 'GNRC', 'RPM', 'SWIR', 'GLW' ]
+#	ls_symbols.extend( [ 'HOG', 'DUST', 'TSLA', 'BAC', 'SVC', 'TRTC', 'PGNX' ] )
+#	ls_symbols.extend( [ 'SPY' ] )
 
 	ls_keys = ['open', 'high', 'low', 'close', 'volume', 'actual_close']
 	ldf_data = dataobj.get_data(ldt_timestamps, ls_symbols, ls_keys, verbose=True)
@@ -34,7 +36,7 @@ if __name__ == '__main__':
 	# q = eventfinder.ClosingPriceRatioLTThresholdQualifierBuilder( 0.9 ).qualify
 	# q = eventfinder.ClosingPriceRatioLTThresholdQualifierBuilder( 0.98 ).qualify
 	# q = eventfinder.ClosingPriceRatioLTThresholdQualifierBuilder( 0.95 ).qualify
-	q = eventfinder.ClosingPriceRatioLTThresholdQualifierBuilder( 0.94 ).qualify
+	q = eventfinder.ClosingPriceRatioLTThresholdQualifierBuilder( 0.95 ).qualify
 	# q = eventfinder.BollingerLTThresholdQualifierBuilder( -3.0 ).qualify
 	# q = eventfinder.original_qualifier
 
@@ -68,6 +70,6 @@ if __name__ == '__main__':
 	print "profit: " + str(profit)
 
 	print "Creating Study"
-	ep.eventprofiler(event_matrix, d_data, i_lookback=20, i_lookforward=20,
-				s_filename='event_study.pdf', b_market_neutral=True, b_errorbars=True,
-				s_market_sym='SPY')
+#	ep.eventprofiler(event_matrix, d_data, i_lookback=20, i_lookforward=20,
+#				s_filename='event_study.pdf', b_market_neutral=True, b_errorbars=True,
+#				s_market_sym='SPY')

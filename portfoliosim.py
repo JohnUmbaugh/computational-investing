@@ -15,7 +15,7 @@ def simulate_portfolio( d_data, orders, ldt_timestamps, starting_cash ):
 	ls_symbols = set()
 	for o in orders:
 		ls_symbols.add( o.symbol )
-	ls_symbols.add( "SPY" )
+#	ls_symbols.add( "SPY" )
 
 	datetime_order_dict = {}
 
